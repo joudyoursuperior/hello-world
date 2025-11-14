@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Clinic {
+  id           String    @id @default(cuid())
+  name         String
+  timezone     String    @default("Asia/Riyadh")
+  locale       String    @default("en")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  users        User[]
+  patients     Patient[]
+  services     Service[]
+  appointments Appointment[]
+  invoices     Invoice[]
+  payments     Payment[]
+  schedules    StaffSchedule[]
+  files        FileAsset[]
+  auditLogs    AuditLog[]
+  invitations  StaffInvitation[]
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  DENTIST
+  HYGIENIST
+  ASSISTANT
+  RECEPTIONIST
+  ACCOUNTANT
+}
+
+model User {
+  id             String      @id @default(cuid())
+  email          String      @unique
+  passwordHash   String
+  fullName       String
+  role           UserRole
+  clinicId       String
+  clinic         Clinic      @relation(fields: [clinicId], references: [id])
+  isActive       Boolean     @default(true)
+  invitedAt      DateTime?
+  invitationId   String?
+  invitation     StaffInvitation? @relation(fields: [invitationId], references: [id])
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  appointments   Appointment[] @relation("AppointmentDentist")
+  createdLogs    AuditLog[]
+}
+
+model StaffInvitation {
+  id          String   @id @default(cuid())
+  clinicId    String
+  clinic      Clinic   @relation(fields: [clinicId], references: [id])
+  email       String
+  role        UserRole
+  token       String   @unique
+  expiresAt   DateTime
+  createdById String
+  createdBy   User     @relation("InvitationCreatedBy", fields: [createdById], references: [id])
+  acceptedAt  DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model Patient {
+  id           String   @id @default(cuid())
+  clinicId     String
+  clinic       Clinic   @relation(fields: [clinicId], references: [id])
+  firstName    String
+  lastName     String
+  email        String?
+  phone        String?
+  dateOfBirth  DateTime?
+  gender       String?
+  address      String?
+  allergies    String?
+  medicalNotes String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  appointments Appointment[]
+  invoices     Invoice[]
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  clinicId    String
+  clinic      Clinic   @relation(fields: [clinicId], references: [id])
+  name        String
+  description String?
+  defaultFee  Decimal  @db.Decimal(10,2)
+  currency    String   @default("SAR")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  appointments Appointment[]
+  invoiceItems InvoiceItem[]
+}
+
+model Appointment {
+  id          String    @id @default(cuid())
+  clinicId    String
+  clinic      Clinic    @relation(fields: [clinicId], references: [id])
+  patientId   String
+  patient     Patient   @relation(fields: [patientId], references: [id])
+  dentistId   String
+  dentist     User      @relation("AppointmentDentist", fields: [dentistId], references: [id])
+  serviceId   String
+  service     Service   @relation(fields: [serviceId], references: [id])
+  room        String?
+  status      String    @default("SCHEDULED")
+  startAt     DateTime
+  endAt       DateTime
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  invoice     Invoice?
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  clinicId    String
+  clinic      Clinic        @relation(fields: [clinicId], references: [id])
+  patientId   String
+  patient     Patient       @relation(fields: [patientId], references: [id])
+  appointmentId String?
+  appointment  Appointment? @relation(fields: [appointmentId], references: [id])
+  status      String        @default("DRAFT")
+  currency    String        @default("SAR")
+  total       Decimal       @db.Decimal(10,2)
+  balanceDue  Decimal       @db.Decimal(10,2)
+  issuedAt    DateTime      @default(now())
+  dueAt       DateTime?
+  items       InvoiceItem[]
+  payments    Payment[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model InvoiceItem {
+  id         String   @id @default(cuid())
+  invoiceId  String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  serviceId  String
+  service    Service  @relation(fields: [serviceId], references: [id])
+  description String?
+  quantity   Int      @default(1)
+  unitPrice  Decimal  @db.Decimal(10,2)
+  total      Decimal  @db.Decimal(10,2)
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  clinicId   String
+  clinic     Clinic   @relation(fields: [clinicId], references: [id])
+  invoiceId  String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  amount     Decimal  @db.Decimal(10,2)
+  currency   String   @default("SAR")
+  method     String
+  reference  String?
+  receivedAt DateTime @default(now())
+}
+
+model StaffSchedule {
+  id         String   @id @default(cuid())
+  clinicId   String
+  clinic     Clinic   @relation(fields: [clinicId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  weekday    Int      // 0-6
+  startTime  String
+  endTime    String
+  isDayOff   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model FileAsset {
+  id        String   @id @default(cuid())
+  clinicId  String
+  clinic    Clinic   @relation(fields: [clinicId], references: [id])
+  patientId String?
+  patient   Patient? @relation(fields: [patientId], references: [id])
+  url       String
+  mimeType  String?
+  createdAt DateTime @default(now())
+  createdById String?
+  createdBy  User?   @relation(fields: [createdById], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  clinicId    String
+  clinic      Clinic   @relation(fields: [clinicId], references: [id])
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String
+  entity      String
+  entityId    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+}
