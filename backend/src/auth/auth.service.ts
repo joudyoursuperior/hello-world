@@ -9,6 +9,7 @@ import { UserRole } from '../common/enums/user-role.enum';
 import * as bcrypt from 'bcryptjs';
 import { ConfigService } from '@nestjs/config';
 import { addHours, isBefore } from 'date-fns';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -54,7 +55,7 @@ export class AuthService {
     if (existingUser) {
       throw new BadRequestException('User already exists');
     }
-    const token = await this.generateInviteToken();
+    const token = this.generateInviteToken();
     const expiryHours = this.config.get<number>('invites.expiryHours', 72);
     const expiresAt = addHours(new Date(), expiryHours);
 
@@ -109,8 +110,8 @@ export class AuthService {
     return this.generateToken(user);
   }
 
-  private async generateInviteToken() {
-    return Buffer.from(`${Date.now()}-${Math.random()}`).toString('base64url');
+  private generateInviteToken() {
+    return randomBytes(32).toString('base64url');
   }
 
   private generateToken(user: { id: string; clinicId: string; role: UserRole; email: string; fullName: string }) {
