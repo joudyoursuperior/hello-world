@@ -1,6 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+export type SafeUser = {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  clinicId: string;
+  isActive: boolean;
+  invitedAt: Date | null;
+  invitationId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 const userSafeSelect = {
   id: true,
   email: true,
@@ -18,14 +31,14 @@ const userSafeSelect = {
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  getUserById(id: string) {
+  getUserById(id: string): Promise<SafeUser | null> {
     return this.prisma.user.findUnique({
       where: { id },
       select: userSafeSelect,
     });
   }
 
-  listClinicUsers(clinicId: string) {
+  listClinicUsers(clinicId: string): Promise<SafeUser[]> {
     return this.prisma.user.findMany({
       where: { clinicId },
       select: userSafeSelect,
