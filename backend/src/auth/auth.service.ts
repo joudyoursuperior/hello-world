@@ -111,7 +111,9 @@ export class AuthService {
   }
 
   private generateInviteToken() {
-    return randomBytes(32).toString('base64url');
+    // 48 cryptographically secure random bytes yields a 64-character URL-safe token
+    // that is sufficiently resistant to brute-force guessing.
+    return randomBytes(48).toString('base64url');
   }
 
   private generateToken(user: { id: string; clinicId: string; role: UserRole; email: string; fullName: string }) {
